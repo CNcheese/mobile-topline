@@ -5,6 +5,9 @@
       <van-cell-group>
         <van-field
           v-model="user.mobile"
+          v-validate="'required'"
+          name='mobile'
+          :error-message="errors.first('mobile')"
           required
           clearable
           label="手机号"
@@ -13,22 +16,31 @@
 
         <van-field
           v-model="user.code"
-          type="password"
-          label="密码"
-          placeholder="请输入密码"
+          v-validate="'required'"
+          name='code'
+          :error-message="errors.first('code')"
+          type="code"
+          label="验证码"
+          placeholder="请输入验证码"
           required
         />
       </van-cell-group>
       <div class="login-btn">
-        <van-button class="btn" type="info" @click.prevent="handleLogin">登录</van-button>
+        <van-button
+        class="btn"
+        type="info"
+        @click.prevent="handleLogin"
+        :loading="loginLoading"
+        >登录</van-button>
       </div>
     </form>
   </div>
 </template>
 
 <script>
+// import { Notify } from 'vant'
+import { login } from '@/api/user'
 import { Notify } from 'vant'
-import axios from 'axios'
 export default {
   name: 'LoginIndex',
   data () {
@@ -36,28 +48,50 @@ export default {
       user: {
         mobile: '18822309291',
         code: '123456'
-      }
+      },
+      loginLoading: false
     }
+  },
+  created () {
+    this.configMessages()
   },
   methods: {
     async handleLogin () {
-      const res = await axios({
-        method: 'POST',
-        url: 'http://toutiao.course.itcast.cn/app/v1_0/authorizations',
-        data: this.user
-      }).then(data => {
+      this.loginLoading = true
+      try {
+        const valid = await this.$validator.validate()
+        if (!valid) {
+          this.loginLoading = false
+          return
+        }
+        const data = await login(this.user)
+        this.$store.commit('setUser', data)
         Notify({
           message: '登录成功',
-          duration: 2000,
-          background: '#409fff'
+          duration: 1000,
+          background: '#1989fa'
         })
-        console.log(res)
-        // this.$notify('登录成功')
-        // Toast.success('登录成功')
         this.$router.push({
           name: 'home'
         })
-      })
+      } catch (err) {
+        console.log(err)
+        this.$notify('登录失败！')
+      }
+      this.loginLoading = false
+    },
+    configMessages () {
+      const dict = {
+        custom: {
+          mobile: {
+            required: '手机号不为空'
+          },
+          code: {
+            required: () => '验证码不能为空'
+          }
+        }
+      }
+      this.$validator.localize('zh_CH', dict)
     }
   }
 }
